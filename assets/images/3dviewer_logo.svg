@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 280 50" id="logo">
+  <defs>
+    <linearGradient id="grad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#178bc5;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#1a9fd8;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  <!-- 3D cube icon -->
+  <g transform="translate(5, 5)">
+    <!-- Top face -->
+    <polygon points="20,2 38,12 20,22 2,12" fill="#2196F3" opacity="0.9"/>
+    <!-- Left face -->
+    <polygon points="2,12 20,22 20,40 2,30" fill="#1976D2" opacity="0.9"/>
+    <!-- Right face -->
+    <polygon points="20,22 38,12 38,30 20,40" fill="#1565C0" opacity="0.9"/>
+  </g>
+  <!-- Text -->
+  <text x="52" y="35" font-family="Arial, Helvetica, sans-serif" font-size="26" font-weight="bold" fill="url(#grad)">
+    <tspan fill="#ffffff">Online</tspan>
+    <tspan fill="#178bc5"> 3D </tspan>
+    <tspan fill="#ffffff">Viewer</tspan>
+  </text>
+</svg>
