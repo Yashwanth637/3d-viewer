@@ -213,10 +213,14 @@
     }
 
     function setSectionActive(active) {
+        if (active && window.gmcSetExplodedActive) {
+            window.gmcSetExplodedActive(false);
+        }
+
         sectionActive = active;
         if (!hudElement) createHUD();
 
-        const toolbarBtn = document.querySelector('.ov_toolbar_button[title="Section View"], .ov_toolbar_button[title="Section view"]');
+        const toolbarBtn = document.querySelector('.ov_toolbar_button[alt="Section View"], .ov_toolbar_button[title="Section View"], .ov_toolbar_button[title="Section view"]');
         if (toolbarBtn) {
             toolbarBtn.classList.toggle('selected', sectionActive);
         }

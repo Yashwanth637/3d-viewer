@@ -203,10 +203,14 @@
     }
 
     function setExplodedActive(active) {
+        if (active && window.gmcSetSectionActive) {
+            window.gmcSetSectionActive(false);
+        }
+
         explodedActive = active;
         if (!hudElement) createHUD();
 
-        const toolbarBtn = document.querySelector('.ov_toolbar_button[title="Exploded View"], .ov_toolbar_button[title="Exploded view"]');
+        const toolbarBtn = document.querySelector('.ov_toolbar_button[alt="Exploded View"], .ov_toolbar_button[title="Exploded View"], .ov_toolbar_button[title="Exploded view"]');
         if (toolbarBtn) {
             toolbarBtn.classList.toggle('selected', explodedActive);
         }
@@ -222,6 +226,12 @@
             resetMeshes();
             if (sliderEl) sliderEl.value = 0;
             if (valueDisplayEl) valueDisplayEl.textContent = '0%';
+            Object.keys(presetButtons).forEach(pct => {
+                const btn = presetButtons[pct];
+                if (btn) {
+                    btn.classList.toggle('active', pct === '0');
+                }
+            });
         }
     }
 
