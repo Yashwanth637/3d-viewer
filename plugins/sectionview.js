@@ -1,22 +1,17 @@
 /**
  * GMC 3D Viewer - Section View Plugin
- * Interactive Cross-Sectioning / Clipping Plane Tool with Solid CAD Capping
- * Uses WebGL Stencil Buffer for true SolidWorks / CAD-grade cross-section rendering
+ * Interactive Cross-Sectioning / Clipping Plane Tool
  */
 (function () {
     let sectionActive = false;
     let currentAxis = 'y'; // 'x', 'y', 'z'
     let currentOffset = 0;
     let inverted = false;
-    let solidCapEnabled = true;
     let hudElement = null;
     let sliderEl = null;
     let valueDisplayEl = null;
-    let capCheckboxEl = null;
     let axisButtons = {};
     let activeViewer = null;
-    let activeCapMesh = null;
-    let activeStencilGroup = null;
     let activePlane = null;
 
     function getViewerInstance() {
@@ -51,7 +46,6 @@
         if (!viewer || !viewer.mainModel) return;
 
         viewer.mainModel.EnumerateMeshes((mesh) => {
-            if (mesh === activeCapMesh) return;
             if (mesh.material) {
                 applyMaterialClipping(mesh.material, planes);
             }
@@ -62,39 +56,10 @@
 
         if (viewer.scene) {
             viewer.scene.traverse((obj) => {
-                if ((obj.isLineSegments || obj.isLine) && obj.material && obj !== activeCapMesh) {
+                if ((obj.isLineSegments || obj.isLine) && obj.material) {
                     applyMaterialClipping(obj.material, planes);
                 }
             });
-        }
-    }
-
-    function clearStencilGroup() {
-        const viewer = getViewerInstance();
-        if (!viewer || !viewer.scene) return;
-        if (activeStencilGroup) {
-            viewer.scene.remove(activeStencilGroup);
-            activeStencilGroup.traverse((child) => {
-                if (child.material) {
-                    if (Array.isArray(child.material)) {
-                        child.material.forEach(m => m.dispose());
-                    } else {
-                        child.material.dispose();
-                    }
-                }
-            });
-            activeStencilGroup = null;
-        }
-    }
-
-    function clearCapMesh() {
-        const viewer = getViewerInstance();
-        if (!viewer || !viewer.scene) return;
-        if (activeCapMesh) {
-            viewer.scene.remove(activeCapMesh);
-            if (activeCapMesh.geometry) activeCapMesh.geometry.dispose();
-            if (activeCapMesh.material) activeCapMesh.material.dispose();
-            activeCapMesh = null;
         }
     }
 
@@ -112,118 +77,7 @@
         }
     }
 
-    function buildStencilGroup(plane) {
-        clearStencilGroup();
-        const viewer = getViewerInstance();
-        if (!viewer || !viewer.scene || !sectionActive || !solidCapEnabled || !window.THREE) return;
-
-        const THREE = window.THREE;
-        if (!THREE.Group || !THREE.MeshBasicMaterial || !THREE.Mesh) return;
-
-        // Ensure world matrices of main model are fresh
-        if (viewer.mainModel && viewer.mainModel.UpdateWorldMatrix) {
-            viewer.mainModel.UpdateWorldMatrix();
-        }
-
-        const stencilGroup = new THREE.Group();
-        stencilGroup.name = 'gmc_section_stencil_group';
-
-        const baseMat = new THREE.MeshBasicMaterial();
-        baseMat.depthWrite = false;
-        baseMat.depthTest = false;
-        baseMat.colorWrite = false;
-        baseMat.stencilWrite = true;
-        baseMat.stencilFunc = THREE.AlwaysStencilFunc || 519;
-
-        // Back faces: increment stencil buffer
-        const matBack = baseMat.clone();
-        matBack.side = THREE.BackSide !== undefined ? THREE.BackSide : 1;
-        matBack.clippingPlanes = [plane];
-        matBack.stencilFail = THREE.IncrementWrapStencilOp || 34055;
-        matBack.stencilZFail = THREE.IncrementWrapStencilOp || 34055;
-        matBack.stencilZPass = THREE.IncrementWrapStencilOp || 34055;
-
-        // Front faces: decrement stencil buffer
-        const matFront = baseMat.clone();
-        matFront.side = THREE.FrontSide !== undefined ? THREE.FrontSide : 0;
-        matFront.clippingPlanes = [plane];
-        matFront.stencilFail = THREE.DecrementWrapStencilOp || 34056;
-        matFront.stencilZFail = THREE.DecrementWrapStencilOp || 34056;
-        matFront.stencilZPass = THREE.DecrementWrapStencilOp || 34056;
-
-        viewer.mainModel.EnumerateMeshes((mesh) => {
-            if (!mesh.geometry || mesh === activeCapMesh) return;
-
-            const bMesh = new THREE.Mesh(mesh.geometry, matBack);
-            bMesh.matrix.copy(mesh.matrixWorld);
-            bMesh.matrixAutoUpdate = false;
-            bMesh.renderOrder = 1;
-            stencilGroup.add(bMesh);
-
-            const fMesh = new THREE.Mesh(mesh.geometry, matFront);
-            fMesh.matrix.copy(mesh.matrixWorld);
-            fMesh.matrixAutoUpdate = false;
-            fMesh.renderOrder = 1;
-            stencilGroup.add(fMesh);
-        });
-
-        viewer.scene.add(stencilGroup);
-        activeStencilGroup = stencilGroup;
-    }
-
-    function updateCapMesh(plane) {
-        const viewer = getViewerInstance();
-        if (!viewer || !viewer.scene || !window.THREE) return;
-
-        if (!sectionActive || !solidCapEnabled) {
-            clearCapMesh();
-            return;
-        }
-
-        const THREE = window.THREE;
-        const bounds = getModelBounds();
-        const sizeX = Math.max(bounds.max.x - bounds.min.x, 2);
-        const sizeY = Math.max(bounds.max.y - bounds.min.y, 2);
-        const sizeZ = Math.max(bounds.max.z - bounds.min.z, 2);
-        const maxDim = Math.max(sizeX, sizeY, sizeZ, 10) * 4;
-
-        if (!activeCapMesh) {
-            const geom = new THREE.PlaneGeometry(maxDim, maxDim);
-            const mat = new THREE.MeshStandardMaterial({
-                color: 0x475569, // Clean SolidWorks/CAD slate gray
-                roughness: 0.65,
-                metalness: 0.15,
-                stencilWrite: true,
-                stencilRef: 0,
-                stencilFunc: THREE.NotEqualStencilFunc || 517,
-                stencilFail: THREE.ReplaceStencilOp || 7681,
-                stencilZFail: THREE.ReplaceStencilOp || 7681,
-                stencilZPass: THREE.ReplaceStencilOp || 7681,
-                side: THREE.DoubleSide !== undefined ? THREE.DoubleSide : 2
-            });
-            activeCapMesh = new THREE.Mesh(geom, mat);
-            activeCapMesh.renderOrder = 2;
-            activeCapMesh.onAfterRender = function (renderer) {
-                if (renderer && renderer.clearStencil) {
-                    renderer.clearStencil();
-                }
-            };
-            viewer.scene.add(activeCapMesh);
-        }
-
-        if (activeCapMesh && plane) {
-            plane.coplanarPoint(activeCapMesh.position);
-            activeCapMesh.lookAt(
-                activeCapMesh.position.x - plane.normal.x,
-                activeCapMesh.position.y - plane.normal.y,
-                activeCapMesh.position.z - plane.normal.z
-            );
-            activeCapMesh.updateMatrix();
-            activeCapMesh.updateMatrixWorld();
-        }
-    }
-
-    function applyClipping(rebuildStencil = false) {
+    function applyClipping() {
         const viewer = getViewerInstance();
         if (!viewer || !viewer.renderer) return;
 
@@ -233,8 +87,6 @@
             viewer.renderer.localClippingEnabled = false;
             viewer.renderer.clippingPlanes = [];
             setModelClipping(null);
-            clearStencilGroup();
-            clearCapMesh();
             activePlane = null;
             viewer.Render();
             return;
@@ -261,17 +113,6 @@
         }
 
         setModelClipping([activePlane]);
-
-        if (solidCapEnabled) {
-            if (rebuildStencil || !activeStencilGroup) {
-                buildStencilGroup(activePlane);
-            }
-            updateCapMesh(activePlane);
-        } else {
-            clearStencilGroup();
-            clearCapMesh();
-        }
-
         viewer.Render();
     }
 
@@ -309,7 +150,7 @@
         });
 
         updateSliderRange();
-        applyClipping(true); // Rebuild stencil on axis change
+        applyClipping();
     }
 
     function createHUD() {
@@ -337,12 +178,6 @@
                     <input type="range" class="gmc_section_slider" min="-10" max="10" step="0.1" value="0">
                     <span class="gmc_offset_value">Y: 0.00</span>
                 </div>
-                <div class="gmc_cap_row">
-                    <label class="gmc_cap_toggle">
-                        <input type="checkbox" class="gmc_cap_chk" checked>
-                        <span class="gmc_cap_label">Solid Part (CAD Cap)</span>
-                    </label>
-                </div>
             </div>
         `;
 
@@ -364,22 +199,16 @@
         flipBtn.addEventListener('click', () => {
             inverted = !inverted;
             flipBtn.classList.toggle('active', inverted);
-            applyClipping(true);
+            applyClipping();
         });
 
         sliderEl = hudElement.querySelector('.gmc_section_slider');
         valueDisplayEl = hudElement.querySelector('.gmc_offset_value');
-        capCheckboxEl = hudElement.querySelector('.gmc_cap_chk');
 
         sliderEl.addEventListener('input', (e) => {
             currentOffset = parseFloat(e.target.value);
             valueDisplayEl.textContent = `${currentAxis.toUpperCase()}: ${currentOffset.toFixed(2)}`;
-            applyClipping(false); // Fast update on drag without rebuilding stencil group
-        });
-
-        capCheckboxEl.addEventListener('change', (e) => {
-            solidCapEnabled = e.target.checked;
-            applyClipping(true);
+            applyClipping();
         });
     }
 
