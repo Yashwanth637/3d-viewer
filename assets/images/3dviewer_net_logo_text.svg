@@ -1,9 +1,5 @@
-<svg id="logo" viewBox="0 0 295 60" xmlns="http://www.w3.org/2000/svg">
+<svg id="logo" viewBox="0 0 280 56" xmlns="http://www.w3.org/2000/svg">
   <defs>
-    <linearGradient id="gmc_grad" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#38bdf8"/>
-      <stop offset="100%" stop-color="#2563eb"/>
-    </linearGradient>
     <linearGradient id="face_top" x1="0%" y1="0%" x2="100%" y2="100%">
       <stop offset="0%" stop-color="#67e8f9"/>
       <stop offset="100%" stop-color="#0ea5e9"/>
@@ -16,30 +12,20 @@
       <stop offset="0%" stop-color="#075985"/>
       <stop offset="100%" stop-color="#0c4a6e"/>
     </linearGradient>
-    <linearGradient id="line_grad" x1="0%" y1="0%" x2="100%" y2="0%">
-      <stop offset="0%" stop-color="#38bdf8" stop-opacity="0.8"/>
-      <stop offset="100%" stop-color="#38bdf8" stop-opacity="0"/>
-    </linearGradient>
   </defs>
   <!-- 3D Isometric Geometric Emblem -->
-  <g transform="translate(6, 4)">
-    <!-- Outer Hexagon Frame -->
-    <polygon points="26,2 48,15 48,39 26,52 4,39 4,15" fill="#0f172a" stroke="#1e293b" stroke-width="2"/>
-    <!-- Top Face -->
-    <polygon points="26,6 44,17 26,27 8,17" fill="url(#face_top)"/>
-    <!-- Left Face -->
-    <polygon points="8,17 26,27 26,47 8,37" fill="url(#face_left)"/>
-    <!-- Right Face -->
-    <polygon points="26,27 44,17 44,37 26,47" fill="url(#face_right)"/>
-    <!-- Inner Accent Cube Core -->
-    <polygon points="26,17 34,22 26,27 18,22" fill="#ffffff" opacity="0.9"/>
-    <polygon points="18,22 26,27 26,37 18,32" fill="#38bdf8" opacity="0.95"/>
-    <polygon points="26,27 34,22 34,32 26,37" fill="#0284c7" opacity="0.95"/>
+  <g transform="translate(4, 3)">
+    <polygon points="25,2 47,15 47,39 25,51 3,39 3,15" fill="#0f172a" stroke="#1e293b" stroke-width="2"/>
+    <polygon points="25,5 43,16 25,26 7,16" fill="url(#face_top)"/>
+    <polygon points="7,16 25,26 25,46 7,36" fill="url(#face_left)"/>
+    <polygon points="25,26 43,16 43,36 25,46" fill="url(#face_right)"/>
+    <polygon points="25,16 33,21 25,26 17,21" fill="#ffffff" opacity="0.9"/>
+    <polygon points="17,21 25,26 25,36 17,31" fill="#38bdf8" opacity="0.95"/>
+    <polygon points="25,26 33,21 33,31 25,36" fill="#0284c7" opacity="0.95"/>
   </g>
-  <!-- Typography -->
-  <text x="68" y="38" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Montserrat', sans-serif" font-size="28" font-weight="900" fill="url(#gmc_grad)" letter-spacing="1">GMC</text>
-  <text x="144" y="38" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Montserrat', sans-serif" font-size="24" font-weight="800" fill="#ffffff" letter-spacing="0.5">3D</text>
-  <text x="186" y="38" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Montserrat', sans-serif" font-size="19" font-weight="600" fill="#94a3b8" letter-spacing="2.5">VIEWER</text>
-  <!-- Sleek Accent Line -->
-  <rect x="144" y="44" width="138" height="2" rx="1" fill="url(#line_grad)"/>
+  <!-- Typography: Theme-Aware -->
+  <text x="58" y="37" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Montserrat', sans-serif" font-size="27" font-weight="900" fill="#0284c7" letter-spacing="0.5">GMC</text>
+  <text x="128" y="37" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Montserrat', sans-serif" font-size="24" font-weight="800" style="fill:var(--ov_logo_text_color, #ffffff);" fill="#ffffff" letter-spacing="0.5">3D</text>
+  <text x="170" y="37" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Montserrat', sans-serif" font-size="18" font-weight="600" style="fill:var(--ov_logo_text_color, #94a3b8); opacity: 0.78;" fill="#94a3b8" letter-spacing="2">VIEWER</text>
+  <rect x="128" y="43" width="144" height="2.5" rx="1" fill="#0284c7" opacity="0.85"/>
 </svg>

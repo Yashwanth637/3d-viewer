@@ -1,19 +1,20 @@
 /**
  * GMC 3D Viewer - Section View Plugin
- * Interactive Cross-Sectioning / Clipping Plane Tool
+ * Interactive Cross-Sectioning / Clipping Plane Tool with Solid CAD Capping
  */
 (function () {
     let sectionActive = false;
     let currentAxis = 'y'; // 'x', 'y', 'z'
     let currentOffset = 0;
     let inverted = false;
+    let solidCapEnabled = true;
     let hudElement = null;
     let sliderEl = null;
     let valueDisplayEl = null;
+    let capCheckboxEl = null;
     let axisButtons = {};
     let activeViewer = null;
-    let currentModel = null;
-    let planeHelper = null;
+    let activeCapMesh = null;
 
     // Custom Plane class that matches Three.js Plane interface
     class ClippingPlane {
@@ -54,6 +55,70 @@
         return { min: { x: -10, y: -10, z: -10 }, max: { x: 10, y: 10, z: 10 } };
     }
 
+    function updateCapMesh(bounds, normalVec, sign) {
+        const viewer = getViewerInstance();
+        if (!viewer || !viewer.scene) return;
+
+        if (!sectionActive || !solidCapEnabled) {
+            if (activeCapMesh) {
+                viewer.scene.remove(activeCapMesh);
+                if (activeCapMesh.geometry) activeCapMesh.geometry.dispose();
+                if (activeCapMesh.material) activeCapMesh.material.dispose();
+                activeCapMesh = null;
+            }
+            return;
+        }
+
+        const sizeX = Math.max(bounds.max.x - bounds.min.x, 2);
+        const sizeY = Math.max(bounds.max.y - bounds.min.y, 2);
+        const sizeZ = Math.max(bounds.max.z - bounds.min.z, 2);
+        const centerX = (bounds.min.x + bounds.max.x) / 2;
+        const centerY = (bounds.min.y + bounds.max.y) / 2;
+        const centerZ = (bounds.min.z + bounds.max.z) / 2;
+
+        let w = 10, h = 10;
+        if (currentAxis === 'x') { w = sizeZ * 1.05; h = sizeY * 1.05; }
+        else if (currentAxis === 'y') { w = sizeX * 1.05; h = sizeZ * 1.05; }
+        else if (currentAxis === 'z') { w = sizeX * 1.05; h = sizeY * 1.05; }
+
+        if (!activeCapMesh) {
+            if (window.THREE && window.THREE.PlaneGeometry && window.THREE.Mesh && window.THREE.MeshStandardMaterial) {
+                const geom = new window.THREE.PlaneGeometry(w, h);
+                const mat = new window.THREE.MeshStandardMaterial({
+                    color: 0x334155, // SolidWorks / CAD slate section color
+                    roughness: 0.65,
+                    metalness: 0.2,
+                    side: window.THREE.DoubleSide || 2
+                });
+                activeCapMesh = new window.THREE.Mesh(geom, mat);
+                viewer.scene.add(activeCapMesh);
+            }
+        } else {
+            if (activeCapMesh.geometry) {
+                activeCapMesh.geometry.dispose();
+                if (window.THREE && window.THREE.PlaneGeometry) {
+                    activeCapMesh.geometry = new window.THREE.PlaneGeometry(w, h);
+                }
+            }
+        }
+
+        if (activeCapMesh) {
+            if (currentAxis === 'x') {
+                activeCapMesh.position.set(currentOffset, centerY, centerZ);
+                activeCapMesh.rotation.set(0, Math.PI / 2, 0);
+            } else if (currentAxis === 'y') {
+                activeCapMesh.position.set(centerX, currentOffset, centerZ);
+                activeCapMesh.rotation.set(Math.PI / 2, 0, 0);
+            } else if (currentAxis === 'z') {
+                activeCapMesh.position.set(centerX, centerY, currentOffset);
+                activeCapMesh.rotation.set(0, 0, 0);
+            }
+            if (activeCapMesh.matrixWorldNeedsUpdate !== undefined) {
+                activeCapMesh.matrixWorldNeedsUpdate = true;
+            }
+        }
+    }
+
     function applyClipping() {
         const viewer = getViewerInstance();
         if (!viewer || !viewer.renderer) return;
@@ -61,10 +126,7 @@
         if (!sectionActive) {
             viewer.renderer.clippingPlanes = [];
             viewer.renderer.localClippingEnabled = false;
-            if (planeHelper && viewer.scene) {
-                viewer.scene.remove(planeHelper);
-                planeHelper = null;
-            }
+            updateCapMesh(null, null, 0);
             viewer.Render();
             return;
         }
@@ -77,9 +139,6 @@
         else if (currentAxis === 'y') ny = sign;
         else if (currentAxis === 'z') nz = sign;
 
-        // Plane equation in Three.js: dot(v, normal) + constant >= 0 are kept
-        // If sign is -1 (cutting from top down to offset):
-        // dot(v, -axis) + offset >= 0  => -v_axis + offset >= 0  => v_axis <= offset
         const constant = inverted ? -currentOffset : currentOffset;
         let plane;
         if (window.THREE && window.THREE.Plane && window.THREE.Vector3) {
@@ -92,7 +151,7 @@
         // Ensure materials compile with clipping enabled
         if (viewer.mainModel && viewer.mainModel.scene) {
             viewer.mainModel.scene.traverse((obj) => {
-                if (obj.material) {
+                if (obj.material && obj !== activeCapMesh) {
                     if (Array.isArray(obj.material)) {
                         obj.material.forEach(m => m.needsUpdate = true);
                     } else {
@@ -101,6 +160,9 @@
                 }
             });
         }
+
+        const bounds = getModelBounds();
+        updateCapMesh(bounds, { x: nx, y: ny, z: nz }, sign);
 
         viewer.Render();
     }
@@ -167,6 +229,12 @@
                     <input type="range" class="gmc_section_slider" min="-10" max="10" step="0.1" value="0">
                     <span class="gmc_offset_value">Y: 0.00</span>
                 </div>
+                <div class="gmc_cap_row">
+                    <label class="gmc_cap_toggle">
+                        <input type="checkbox" class="gmc_cap_chk" checked>
+                        <span class="gmc_cap_label">Solid Part (CAD Cap)</span>
+                    </label>
+                </div>
             </div>
         `;
 
@@ -193,10 +261,16 @@
 
         sliderEl = hudElement.querySelector('.gmc_section_slider');
         valueDisplayEl = hudElement.querySelector('.gmc_offset_value');
+        capCheckboxEl = hudElement.querySelector('.gmc_cap_chk');
 
         sliderEl.addEventListener('input', (e) => {
             currentOffset = parseFloat(e.target.value);
             valueDisplayEl.textContent = `${currentAxis.toUpperCase()}: ${currentOffset.toFixed(2)}`;
+            applyClipping();
+        });
+
+        capCheckboxEl.addEventListener('change', (e) => {
+            solidCapEnabled = e.target.checked;
             applyClipping();
         });
     }
@@ -217,6 +291,36 @@
             hudElement.style.display = 'none';
             applyClipping();
         }
+    }
+
+    // Auto-hide when leaving model view (Hash change, back navigation, or Intro state)
+    function checkModelActiveState() {
+        const hash = window.location.hash || '';
+        const hasModelInHash = hash.includes('model=');
+        const introVisible = document.querySelector('#intro')?.style?.display !== 'none';
+        
+        if (!hasModelInHash || introVisible) {
+            if (sectionActive) {
+                setSectionActive(false);
+            }
+        }
+    }
+
+    window.addEventListener('hashchange', checkModelActiveState);
+    window.addEventListener('popstate', checkModelActiveState);
+    window.addEventListener('gmc_ui_state_changed', (e) => {
+        if (e.detail && e.detail.state !== 2) { // 2 = ss.Model
+            setSectionActive(false);
+        }
+    });
+
+    // Observer on #intro to detect display changes
+    const introEl = document.getElementById('intro');
+    if (introEl) {
+        const obs = new MutationObserver(() => {
+            checkModelActiveState();
+        });
+        obs.observe(introEl, { attributes: true, attributeFilter: ['style', 'class'] });
     }
 
     // Register with OV Toolbar Plugin system
@@ -240,4 +344,6 @@
             }
         });
     }
+
+    window.gmcSetSectionActive = setSectionActive;
 })();

@@ -540,3 +540,128 @@ i.icon-warning {
     text-align: right;
     font-weight: 600;
 }
+
+/* ============================================================
+   Exploded View Icon & HUD Styles
+   ============================================================ */
+i.icon-exploded {
+    -webkit-mask-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="black" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 1 18 4.5 12 8 6 4.5"/><polygon points="3 9.5 9 13 9 19.5 3 16"/><polygon points="21 9.5 15 13 15 19.5 21 16"/><circle cx="12" cy="13.5" r="1.5" fill="black"/></svg>') !important;
+    mask-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="black" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 1 18 4.5 12 8 6 4.5"/><polygon points="3 9.5 9 13 9 19.5 3 16"/><polygon points="21 9.5 15 13 15 19.5 21 16"/><circle cx="12" cy="13.5" r="1.5" fill="black"/></svg>') !important;
+}
+
+.gmc_exploded_hud {
+    position: fixed;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(24, 28, 36, 0.94);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255, 255, 255, 0.05);
+    border-radius: 12px;
+    padding: 12px 18px;
+    z-index: 1000;
+    min-width: 320px;
+    max-width: 90vw;
+    color: #e2e8f0;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    animation: gmcSlideUp 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    display: none;
+}
+
+.gmc_exploded_hud .gmc_hud_header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding-bottom: 8px;
+    margin-bottom: 10px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.gmc_exploded_hud .gmc_hud_title {
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    color: #38bdf8;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.gmc_exploded_hud .gmc_hud_icon {
+    display: inline-block;
+    width: 15px;
+    height: 15px;
+    background-color: #38bdf8;
+    -webkit-mask-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="black" stroke-width="2"><polygon points="12 1 18 4.5 12 8 6 4.5"/><polygon points="3 9.5 9 13 9 19.5 3 16"/><polygon points="21 9.5 15 13 15 19.5 21 16"/><circle cx="12" cy="13.5" r="1.5" fill="black"/></svg>');
+    mask-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="black" stroke-width="2"><polygon points="12 1 18 4.5 12 8 6 4.5"/><polygon points="3 9.5 9 13 9 19.5 3 16"/><polygon points="21 9.5 15 13 15 19.5 21 16"/><circle cx="12" cy="13.5" r="1.5" fill="black"/></svg>');
+    -webkit-mask-size: contain;
+    mask-size: contain;
+}
+
+.gmc_preset_btn {
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    color: #cbd5e1;
+    font-size: 11px;
+    font-weight: 700;
+    padding: 5px 10px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.gmc_preset_btn:hover {
+    background: rgba(255, 255, 255, 0.15);
+    color: #fff;
+}
+
+.gmc_preset_btn.active {
+    background: linear-gradient(135deg, #0284c7, #2563eb);
+    border-color: #38bdf8;
+    color: #fff;
+}
+
+/* Solid CAD Section Cap Toggle Row */
+.gmc_cap_row {
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+    display: flex;
+    align-items: center;
+}
+
+.gmc_cap_toggle {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    font-size: 11px;
+    font-weight: 600;
+    color: #94a3b8;
+    user-select: none;
+}
+
+.gmc_cap_toggle:hover {
+    color: #38bdf8;
+}
+
+.gmc_cap_toggle input[type="checkbox"] {
+    accent-color: #0284c7;
+    width: 14px;
+    height: 14px;
+    cursor: pointer;
+}
+
+/* Header & Intro Logo Dimension Fine-tuning */
+div.title svg.logo_image {
+    width: 200px !important;
+    height: 40px !important;
+}
+
+div.intro svg.intro_logo {
+    width: 380px !important;
+    height: 76px !important;
+}
