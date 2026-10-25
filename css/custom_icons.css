@@ -545,8 +545,18 @@ i.icon-warning {
    Exploded View Icon & HUD Styles
    ============================================================ */
 i.icon-exploded {
+    display: inline-block;
+    width: 18px;
+    height: 18px;
+    background-color: currentColor;
     -webkit-mask-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="black" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 1 18 4.5 12 8 6 4.5"/><polygon points="3 9.5 9 13 9 19.5 3 16"/><polygon points="21 9.5 15 13 15 19.5 21 16"/><circle cx="12" cy="13.5" r="1.5" fill="black"/></svg>') !important;
     mask-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="black" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 1 18 4.5 12 8 6 4.5"/><polygon points="3 9.5 9 13 9 19.5 3 16"/><polygon points="21 9.5 15 13 15 19.5 21 16"/><circle cx="12" cy="13.5" r="1.5" fill="black"/></svg>') !important;
+    -webkit-mask-size: contain !important;
+    mask-size: contain !important;
+    -webkit-mask-repeat: no-repeat !important;
+    mask-repeat: no-repeat !important;
+    -webkit-mask-position: center !important;
+    mask-position: center !important;
 }
 
 .gmc_exploded_hud {

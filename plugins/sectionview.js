@@ -274,7 +274,7 @@
                 pluginInterface.createButton(
                     'section',
                     'Section View',
-                    ['only_full_width', 'only_on_model'],
+                    ['only_on_model'],
                     () => {
                         if (pluginInterface.getViewer) {
                             activeViewer = pluginInterface.getViewer();

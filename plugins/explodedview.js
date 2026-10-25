@@ -1,6 +1,6 @@
 /**
  * GMC 3D Viewer - Exploded View Plugin
- * Smooth directional and radial outward explosion of assembly components
+ * Smooth directional (X, Y, Z) and radial outward explosion of assembly components
  * Full 1:1 synchronization of solid meshes, CAD wireframe edges, and lines
  */
 (function () {
@@ -15,7 +15,7 @@
     let presetButtons = {};
     let componentGroups = new Map(); // key -> ComponentGroup
     let objectBaselines = new Map(); // Object3D -> { origX, origY, origZ }
-    let assemblyContext = null; // { center, sizeX, sizeY, sizeZ, maxExplodeDistance }
+    let assemblyContext = null; // { center, sizeX, sizeY, sizeZ, diagonal, maxExplodeDistance }
 
     function getViewerInstance() {
         if (activeViewer) return activeViewer;
@@ -59,9 +59,9 @@
         const sizeY = Math.max(box.max.y - box.min.y, 1);
         const sizeZ = Math.max(box.max.z - box.min.z, 1);
         const diagonal = Math.sqrt(sizeX * sizeX + sizeY * sizeY + sizeZ * sizeZ);
-        const maxExplodeDistance = Math.max(diagonal * 0.85, 30);
+        const maxExplodeDistance = Math.max(diagonal * 0.9, 30);
 
-        assemblyContext = { center, sizeX, sizeY, sizeZ, maxExplodeDistance };
+        assemblyContext = { center, sizeX, sizeY, sizeZ, diagonal, maxExplodeDistance };
 
         function getGroup(key, fallbackName) {
             if (!componentGroups.has(key)) {
@@ -73,7 +73,7 @@
                     lines: [],
                     worldCenter: { x: 0, y: 0, z: 0 },
                     meshCount: 0,
-                    lastDisplacement: { x: 0, y: 0, z: 0 }
+                    currentDisplacement: { x: 0, y: 0, z: 0 }
                 });
             }
             return componentGroups.get(key);
@@ -166,68 +166,81 @@
         return true;
     }
 
-    function getComponentDisplacement(grp, axis, factor, ctx) {
-        const { center, sizeX, sizeY, sizeZ, maxExplodeDistance } = ctx;
-        const wc = grp.worldCenter;
-        const dx = wc.x - center.x;
-        const dy = wc.y - center.y;
-        const dz = wc.z - center.z;
+    function computeAllDisplacements(axis, factor, ctx) {
+        const groups = Array.from(componentGroups.values());
+        const count = groups.length;
+        if (count === 0) return;
 
-        if (axis === 'x') {
-            const halfSpan = sizeX / 2 || 1;
-            const normDist = Math.abs(dx) / halfSpan;
-            const sign = Math.abs(dx) > 0.001 ? Math.sign(dx) : (grp.index % 2 === 0 ? 1 : -1);
-            const weight = 0.25 + 0.75 * Math.min(Math.max(normDist, 0.1), 2.0);
-            return {
-                x: sign * maxExplodeDistance * weight * factor,
-                y: 0,
-                z: 0
-            };
-        } else if (axis === 'y') {
-            const halfSpan = sizeY / 2 || 1;
-            const normDist = Math.abs(dy) / halfSpan;
-            const sign = Math.abs(dy) > 0.001 ? Math.sign(dy) : (grp.index % 2 === 0 ? 1 : -1);
-            const weight = 0.25 + 0.75 * Math.min(Math.max(normDist, 0.1), 2.0);
-            return {
-                x: 0,
-                y: sign * maxExplodeDistance * weight * factor,
-                z: 0
-            };
-        } else if (axis === 'z') {
-            const halfSpan = sizeZ / 2 || 1;
-            const normDist = Math.abs(dz) / halfSpan;
-            const sign = Math.abs(dz) > 0.001 ? Math.sign(dz) : (grp.index % 2 === 0 ? 1 : -1);
-            const weight = 0.25 + 0.75 * Math.min(Math.max(normDist, 0.1), 2.0);
-            return {
-                x: 0,
-                y: 0,
-                z: sign * maxExplodeDistance * weight * factor
-            };
+        if (factor === 0) {
+            groups.forEach((grp) => {
+                grp.currentDisplacement = { x: 0, y: 0, z: 0 };
+            });
+            return;
+        }
+
+        if (axis === 'radial') {
+            // 3D Radial outward explosion
+            groups.forEach((grp, idx) => {
+                const dx = grp.worldCenter.x - ctx.center.x;
+                const dy = grp.worldCenter.y - ctx.center.y;
+                const dz = grp.worldCenter.z - ctx.center.z;
+                let dist = Math.sqrt(dx * dx + dy * dy + dz * dz);
+                let dirX, dirY, dirZ;
+
+                if (dist < 0.001) {
+                    const phi = Math.acos(1 - 2 * (idx + 0.5) / count);
+                    const theta = Math.PI * (1 + Math.sqrt(5)) * idx;
+                    dirX = Math.sin(phi) * Math.cos(theta);
+                    dirY = Math.sin(phi) * Math.sin(theta);
+                    dirZ = Math.cos(phi);
+                } else {
+                    dirX = dx / dist;
+                    dirY = dy / dist;
+                    dirZ = dz / dist;
+                }
+
+                const maxSpan = Math.max(ctx.diagonal / 2, 1);
+                const distRatio = Math.min(Math.max(dist / maxSpan, 0.15), 2.0);
+                const weight = 0.35 + 0.65 * distRatio;
+                const mag = ctx.maxExplodeDistance * weight * factor;
+
+                grp.currentDisplacement = {
+                    x: dirX * mag,
+                    y: dirY * mag,
+                    z: dirZ * mag
+                };
+            });
         } else {
-            // Radial (Free-form 3D outward explosion)
-            let dist = Math.sqrt(dx * dx + dy * dy + dz * dz);
-            let dirX, dirY, dirZ;
-            if (dist < 0.001) {
-                const angle = (grp.index / Math.max(componentGroups.size, 1)) * Math.PI * 2;
-                dirX = Math.cos(angle);
-                dirY = (grp.index % 2 === 0 ? 0.6 : -0.6);
-                dirZ = Math.sin(angle);
-                const len = Math.sqrt(dirX * dirX + dirY * dirY + dirZ * dirZ);
-                dirX /= len;
-                dirY /= len;
-                dirZ /= len;
-            } else {
-                dirX = dx / dist;
-                dirY = dy / dist;
-                dirZ = dz / dist;
-            }
-            const maxDist = Math.sqrt(sizeX * sizeX + sizeY * sizeY + sizeZ * sizeZ) / 2 || 1;
-            const weight = 0.35 + 0.65 * Math.min(Math.max(dist / maxDist, 0.1), 2.0);
-            return {
-                x: dirX * maxExplodeDistance * weight * factor,
-                y: dirY * maxExplodeDistance * weight * factor,
-                z: dirZ * maxExplodeDistance * weight * factor
-            };
+            // Pure Directional Axial Explosion: strictly along 'x', 'y', or 'z'
+            const coordKey = axis; // 'x', 'y', or 'z'
+            const spanKey = (axis === 'x' ? 'sizeX' : (axis === 'y' ? 'sizeY' : 'sizeZ'));
+            const halfSpan = ctx[spanKey] / 2 || 1;
+            const centerCoord = ctx.center[coordKey];
+
+            // Sort groups along the chosen axis coordinate
+            const sorted = [...groups].sort((a, b) => a.worldCenter[coordKey] - b.worldCenter[coordKey]);
+
+            sorted.forEach((grp, rank) => {
+                const coord = grp.worldCenter[coordKey];
+                const dCoord = coord - centerCoord;
+
+                // Normalized rank from -1 to +1 along the sorted assembly
+                const rankRatio = count > 1 ? (rank - (count - 1) / 2) / ((count - 1) / 2) : 1;
+
+                // Physical distance factor relative to half-span
+                const physRatio = Math.abs(dCoord) / halfSpan;
+                const sign = Math.abs(dCoord) > 0.001 ? Math.sign(dCoord) : (rankRatio >= 0 ? 1 : -1);
+
+                // Blend rank ordering (guarantees every mesh gets its own slot) with physical distance
+                const combinedWeight = 0.45 * Math.abs(rankRatio) + 0.55 * Math.min(Math.max(physRatio, 0.15), 2.0);
+                const mag = sign * ctx.maxExplodeDistance * (0.25 + 0.75 * combinedWeight) * factor;
+
+                grp.currentDisplacement = {
+                    x: axis === 'x' ? mag : 0,
+                    y: axis === 'y' ? mag : 0,
+                    z: axis === 'z' ? mag : 0
+                };
+            });
         }
     }
 
@@ -280,12 +293,10 @@
         });
 
         const ctx = assemblyContext;
-        let idx = 0;
+        computeAllDisplacements(currentAxis, factor, ctx);
 
         componentGroups.forEach((grp) => {
-            grp.index = idx++;
-            const disp = getComponentDisplacement(grp, currentAxis, factor, ctx);
-            grp.lastDisplacement = disp;
+            const disp = grp.currentDisplacement || { x: 0, y: 0, z: 0 };
 
             // 1. Displace meshes
             grp.meshes.forEach((mesh) => {
@@ -367,38 +378,38 @@
         hudElement = document.createElement('div');
         hudElement.className = 'gmc_exploded_hud';
         hudElement.innerHTML = `
-            <div class="gmc_hud_header">
-                <span class="gmc_hud_title">
-                    <span class="gmc_hud_icon"></span>
-                    Exploded View
-                </span>
+            <div class="gmc_hud_title">
+                <span>Exploded View</span>
                 <button class="gmc_hud_close" title="Close Exploded View">&times;</button>
             </div>
             <div class="gmc_hud_body">
                 <div class="gmc_axis_row">
                     <span class="gmc_label">Axis:</span>
-                    <button class="gmc_axis_btn active" data-axis="radial">Radial</button>
-                    <button class="gmc_axis_btn" data-axis="x">X</button>
-                    <button class="gmc_axis_btn" data-axis="y">Y</button>
-                    <button class="gmc_axis_btn" data-axis="z">Z</button>
+                    <button class="gmc_axis_btn gmc_explode_axis_btn active" data-axis="radial">Radial</button>
+                    <button class="gmc_axis_btn gmc_explode_axis_btn" data-axis="x">X</button>
+                    <button class="gmc_axis_btn gmc_explode_axis_btn" data-axis="y">Y</button>
+                    <button class="gmc_axis_btn gmc_explode_axis_btn" data-axis="z">Z</button>
                 </div>
                 <div class="gmc_axis_row">
                     <span class="gmc_label">Presets:</span>
                     <button class="gmc_preset_btn active" data-pct="0">0%</button>
                     <button class="gmc_preset_btn" data-pct="25">25%</button>
                     <button class="gmc_preset_btn" data-pct="50">50%</button>
+                    <button class="gmc_preset_btn" data-pct="75">75%</button>
                     <button class="gmc_preset_btn" data-pct="100">100%</button>
                 </div>
                 <div class="gmc_slider_row">
-                    <input type="range" class="gmc_section_slider gmc_explode_slider" min="0" max="100" step="1" value="0">
-                    <span class="gmc_offset_value gmc_explode_val">0%</span>
+                    <input type="range" class="gmc_explode_slider" min="0" max="100" value="0" step="1">
+                    <span class="gmc_explode_val">0%</span>
                 </div>
             </div>
         `;
 
         document.body.appendChild(hudElement);
 
-        hudElement.querySelector('.gmc_hud_close').addEventListener('click', () => {
+        // Close button
+        const closeBtn = hudElement.querySelector('.gmc_hud_close');
+        closeBtn.addEventListener('click', () => {
             setExplodedActive(false);
         });
 
@@ -503,7 +514,7 @@
                 pluginInterface.createButton(
                     'exploded',
                     'Exploded View',
-                    ['only_full_width', 'only_on_model'],
+                    ['only_on_model'],
                     () => {
                         if (pluginInterface.getViewer) {
                             activeViewer = pluginInterface.getViewer();
@@ -516,4 +527,9 @@
     }
 
     window.gmcSetExplodedActive = setExplodedActive;
+    window.gmcSelectExplodedAxis = selectAxis;
+    window.gmcApplyExplode = applyExplode;
+    window.gmcGetExplodedAxis = () => currentAxis;
+    window.gmcGetExplodedFactor = () => currentFactor;
+    window.gmcGetComponentGroups = () => componentGroups;
 })();
