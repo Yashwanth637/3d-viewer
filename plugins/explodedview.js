@@ -178,85 +178,163 @@
             return;
         }
 
-        if (axis === 'radial') {
-            // Outward 3D radial explosion with equal radial distance step
-            const diag = ctx.diagonal || 1;
-            const radialStep = (diag * 0.8) / Math.max(count, 1);
-            const baseDist = Math.max(diag * 0.25, 20);
+        const diag = ctx.diagonal || 1;
 
-            // Sort groups by distance from center for stable concentric ordering
+        if (axis === 'radial') {
+            // Outward 3D radial explosion from current positions
+            // Each component moves outward along its vector from the assembly center
             const sortedRadial = [...groups].sort((a, b) => {
                 const da = Math.hypot(a.worldCenter.x - ctx.center.x, a.worldCenter.y - ctx.center.y, a.worldCenter.z - ctx.center.z);
                 const db = Math.hypot(b.worldCenter.x - ctx.center.x, b.worldCenter.y - ctx.center.y, b.worldCenter.z - ctx.center.z);
                 return da - db;
             });
 
-            sortedRadial.forEach((grp, idx) => {
-                const dx = grp.worldCenter.x - ctx.center.x;
-                const dy = grp.worldCenter.y - ctx.center.y;
-                const dz = grp.worldCenter.z - ctx.center.z;
-                let dist = Math.sqrt(dx * dx + dy * dy + dz * dz);
-                let dirX, dirY, dirZ;
-
-                if (dist < 0.001) {
-                    const phi = Math.acos(1 - 2 * (idx + 0.5) / count);
-                    const theta = Math.PI * (1 + Math.sqrt(5)) * idx;
-                    dirX = Math.sin(phi) * Math.cos(theta);
-                    dirY = Math.sin(phi) * Math.sin(theta);
-                    dirZ = Math.cos(phi);
-                } else {
-                    dirX = dx / dist;
-                    dirY = dy / dist;
-                    dirZ = dz / dist;
+            // Group into concentric radial shells
+            const radTol = Math.max(diag * 0.02, 5);
+            const shells = [];
+            sortedRadial.forEach((grp) => {
+                const dist = Math.hypot(grp.worldCenter.x - ctx.center.x, grp.worldCenter.y - ctx.center.y, grp.worldCenter.z - ctx.center.z);
+                let shell = shells.find(s => Math.abs(s.dist - dist) <= radTol);
+                if (!shell) {
+                    shell = { dist, groups: [] };
+                    shells.push(shell);
                 }
+                shell.groups.push(grp);
+            });
 
-                // Equal radial distance step from center
-                const mag = (baseDist + idx * radialStep) * factor;
+            const shellCount = Math.max(shells.length, 1);
+            const radialStep = Math.max((diag * 0.5) / shellCount, 40);
 
-                grp.currentDisplacement = {
-                    x: dirX * mag,
-                    y: dirY * mag,
-                    z: dirZ * mag
-                };
+            shells.forEach((shell, sIdx) => {
+                const mag = ((sIdx + 1) * radialStep) * factor;
+
+                shell.groups.forEach((grp, idxInShell) => {
+                    const dx = grp.worldCenter.x - ctx.center.x;
+                    const dy = grp.worldCenter.y - ctx.center.y;
+                    const dz = grp.worldCenter.z - ctx.center.z;
+                    let dist = Math.sqrt(dx * dx + dy * dy + dz * dz);
+                    let dirX, dirY, dirZ;
+
+                    if (dist < 0.001) {
+                        const phi = Math.acos(1 - 2 * (idxInShell + 0.5) / shell.groups.length);
+                        const theta = Math.PI * (1 + Math.sqrt(5)) * idxInShell;
+                        dirX = Math.sin(phi) * Math.cos(theta);
+                        dirY = Math.sin(phi) * Math.sin(theta);
+                        dirZ = Math.cos(phi);
+                    } else {
+                        dirX = dx / dist;
+                        dirY = dy / dist;
+                        dirZ = dz / dist;
+                    }
+
+                    grp.currentDisplacement = {
+                        x: dirX * mag,
+                        y: dirY * mag,
+                        z: dirZ * mag
+                    };
+                });
             });
         } else {
-            // Directional Axial Explosion (X, Y, Z) with strictly equal distance from mesh to mesh
+            // Directional Axial Explosion (X, Y, Z) strictly from current positions
+            // Components move OUTWARD along the chosen axis. Zero inward collapse.
             const coordKey = axis; // 'x', 'y', or 'z'
             const spanKey = (axis === 'x' ? 'sizeX' : (axis === 'y' ? 'sizeY' : 'sizeZ'));
             const axisSpan = ctx[spanKey] || 1;
-            const diag = ctx.diagonal || 1;
             const centerCoord = ctx.center[coordKey];
 
-            // Equal step distance between adjacent meshes along chosen axis
+            // Level tolerance: parts within this window along the axis belong to the same level (e.g. coplanar fasteners)
+            const tol = Math.max(axisSpan * 0.02, diag * 0.015, 2.0);
+
+            // Partition into positive side, negative side, and centered
+            const posList = [];
+            const negList = [];
+            const centerList = [];
+
+            groups.forEach((grp) => {
+                const diff = grp.worldCenter[coordKey] - centerCoord;
+                if (diff > tol) {
+                    posList.push(grp);
+                } else if (diff < -tol) {
+                    negList.push(grp);
+                } else {
+                    centerList.push(grp);
+                }
+            });
+
+            // Helper to cluster parts into outward levels sorted from center to outside
+            function clusterLevels(list) {
+                list.sort((a, b) => {
+                    const da = Math.abs(a.worldCenter[coordKey] - centerCoord);
+                    const db = Math.abs(b.worldCenter[coordKey] - centerCoord);
+                    return da - db;
+                });
+
+                const levels = [];
+                list.forEach((g) => {
+                    let lvl = levels.find(l => Math.abs(l.coord - g.worldCenter[coordKey]) <= tol);
+                    if (!lvl) {
+                        lvl = { coord: g.worldCenter[coordKey], groups: [] };
+                        levels.push(lvl);
+                    }
+                    lvl.groups.push(g);
+                });
+                return levels;
+            }
+
+            const posLevels = clusterLevels(posList);
+            const negLevels = clusterLevels(negList);
+
+            const maxLevels = Math.max(posLevels.length, negLevels.length, 1);
+            // Step distance for 100% visibility clearance
             const step = Math.max(
-                (diag * 1.5) / Math.max(count - 1, 1),
-                (axisSpan * 2.0) / Math.max(count - 1, 1),
-                50
+                (diag * 0.5) / maxLevels,
+                (axisSpan * 0.6) / maxLevels,
+                40
             );
 
-            // Deterministic stable sort along chosen axis
-            const sorted = [...groups].sort((a, b) => {
-                const diff = a.worldCenter[coordKey] - b.worldCenter[coordKey];
-                if (Math.abs(diff) > 0.001) return diff;
+            // 1. Positive Side: moves outward in positive direction (+axis) from current position
+            posLevels.forEach((lvl, idx) => {
+                const disp = (idx + 1) * step * factor;
+                lvl.groups.forEach((g) => {
+                    g.currentDisplacement = {
+                        x: axis === 'x' ? disp : 0,
+                        y: axis === 'y' ? disp : 0,
+                        z: axis === 'z' ? disp : 0
+                    };
+                });
+            });
+
+            // 2. Negative Side: moves outward in negative direction (-axis) from current position
+            negLevels.forEach((lvl, idx) => {
+                const disp = -(idx + 1) * step * factor;
+                lvl.groups.forEach((g) => {
+                    g.currentDisplacement = {
+                        x: axis === 'x' ? disp : 0,
+                        y: axis === 'y' ? disp : 0,
+                        z: axis === 'z' ? disp : 0
+                    };
+                });
+            });
+
+            // 3. Centered Components:
+            // Single centered component acts as base anchor (disp = 0)
+            // If multiple centered components exist, separate them symmetrically
+            if (centerList.length === 1) {
+                centerList[0].currentDisplacement = { x: 0, y: 0, z: 0 };
+            } else if (centerList.length > 1) {
                 const sec1 = coordKey === 'x' ? 'y' : 'x';
-                const diff1 = a.worldCenter[sec1] - b.worldCenter[sec1];
-                if (Math.abs(diff1) > 0.001) return diff1;
-                const sec2 = coordKey === 'z' ? 'y' : 'z';
-                return a.worldCenter[sec2] - b.worldCenter[sec2];
-            });
-
-            sorted.forEach((grp, rank) => {
-                // Symmetrically centered equal spacing for every mesh
-                const rankOffset = count > 1 ? rank - (count - 1) / 2 : 0;
-                const targetCoord = centerCoord + rankOffset * step * factor;
-                const dispVal = targetCoord - grp.worldCenter[coordKey];
-
-                grp.currentDisplacement = {
-                    x: axis === 'x' ? dispVal : 0,
-                    y: axis === 'y' ? dispVal : 0,
-                    z: axis === 'z' ? dispVal : 0
-                };
-            });
+                centerList.sort((a, b) => a.worldCenter[sec1] - b.worldCenter[sec1]);
+                const cCount = centerList.length;
+                centerList.forEach((g, cIdx) => {
+                    const cOffset = (cIdx - (cCount - 1) / 2);
+                    const cDisp = cOffset * (step * 0.4) * factor;
+                    g.currentDisplacement = {
+                        x: axis === 'x' ? cDisp : 0,
+                        y: axis === 'y' ? cDisp : 0,
+                        z: axis === 'z' ? cDisp : 0
+                    };
+                });
+            }
         }
     }
 
