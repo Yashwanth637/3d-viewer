@@ -179,8 +179,19 @@
         }
 
         if (axis === 'radial') {
-            // 3D Radial outward explosion
-            groups.forEach((grp, idx) => {
+            // Outward 3D radial explosion with equal radial distance step
+            const diag = ctx.diagonal || 1;
+            const radialStep = (diag * 0.8) / Math.max(count, 1);
+            const baseDist = Math.max(diag * 0.25, 20);
+
+            // Sort groups by distance from center for stable concentric ordering
+            const sortedRadial = [...groups].sort((a, b) => {
+                const da = Math.hypot(a.worldCenter.x - ctx.center.x, a.worldCenter.y - ctx.center.y, a.worldCenter.z - ctx.center.z);
+                const db = Math.hypot(b.worldCenter.x - ctx.center.x, b.worldCenter.y - ctx.center.y, b.worldCenter.z - ctx.center.z);
+                return da - db;
+            });
+
+            sortedRadial.forEach((grp, idx) => {
                 const dx = grp.worldCenter.x - ctx.center.x;
                 const dy = grp.worldCenter.y - ctx.center.y;
                 const dz = grp.worldCenter.z - ctx.center.z;
@@ -199,10 +210,8 @@
                     dirZ = dz / dist;
                 }
 
-                const maxSpan = Math.max(ctx.diagonal / 2, 1);
-                const distRatio = Math.min(Math.max(dist / maxSpan, 0.15), 2.0);
-                const weight = 0.35 + 0.65 * distRatio;
-                const mag = ctx.maxExplodeDistance * weight * factor;
+                // Equal radial distance step from center
+                const mag = (baseDist + idx * radialStep) * factor;
 
                 grp.currentDisplacement = {
                     x: dirX * mag,
@@ -211,34 +220,41 @@
                 };
             });
         } else {
-            // Pure Directional Axial Explosion: strictly along 'x', 'y', or 'z'
+            // Directional Axial Explosion (X, Y, Z) with strictly equal distance from mesh to mesh
             const coordKey = axis; // 'x', 'y', or 'z'
             const spanKey = (axis === 'x' ? 'sizeX' : (axis === 'y' ? 'sizeY' : 'sizeZ'));
-            const halfSpan = ctx[spanKey] / 2 || 1;
+            const axisSpan = ctx[spanKey] || 1;
+            const diag = ctx.diagonal || 1;
             const centerCoord = ctx.center[coordKey];
 
-            // Sort groups along the chosen axis coordinate
-            const sorted = [...groups].sort((a, b) => a.worldCenter[coordKey] - b.worldCenter[coordKey]);
+            // Equal step distance between adjacent meshes along chosen axis
+            const step = Math.max(
+                (diag * 1.5) / Math.max(count - 1, 1),
+                (axisSpan * 2.0) / Math.max(count - 1, 1),
+                50
+            );
+
+            // Deterministic stable sort along chosen axis
+            const sorted = [...groups].sort((a, b) => {
+                const diff = a.worldCenter[coordKey] - b.worldCenter[coordKey];
+                if (Math.abs(diff) > 0.001) return diff;
+                const sec1 = coordKey === 'x' ? 'y' : 'x';
+                const diff1 = a.worldCenter[sec1] - b.worldCenter[sec1];
+                if (Math.abs(diff1) > 0.001) return diff1;
+                const sec2 = coordKey === 'z' ? 'y' : 'z';
+                return a.worldCenter[sec2] - b.worldCenter[sec2];
+            });
 
             sorted.forEach((grp, rank) => {
-                const coord = grp.worldCenter[coordKey];
-                const dCoord = coord - centerCoord;
-
-                // Normalized rank from -1 to +1 along the sorted assembly
-                const rankRatio = count > 1 ? (rank - (count - 1) / 2) / ((count - 1) / 2) : 1;
-
-                // Physical distance factor relative to half-span
-                const physRatio = Math.abs(dCoord) / halfSpan;
-                const sign = Math.abs(dCoord) > 0.001 ? Math.sign(dCoord) : (rankRatio >= 0 ? 1 : -1);
-
-                // Blend rank ordering (guarantees every mesh gets its own slot) with physical distance
-                const combinedWeight = 0.45 * Math.abs(rankRatio) + 0.55 * Math.min(Math.max(physRatio, 0.15), 2.0);
-                const mag = sign * ctx.maxExplodeDistance * (0.25 + 0.75 * combinedWeight) * factor;
+                // Symmetrically centered equal spacing for every mesh
+                const rankOffset = count > 1 ? rank - (count - 1) / 2 : 0;
+                const targetCoord = centerCoord + rankOffset * step * factor;
+                const dispVal = targetCoord - grp.worldCenter[coordKey];
 
                 grp.currentDisplacement = {
-                    x: axis === 'x' ? mag : 0,
-                    y: axis === 'y' ? mag : 0,
-                    z: axis === 'z' ? mag : 0
+                    x: axis === 'x' ? dispVal : 0,
+                    y: axis === 'y' ? dispVal : 0,
+                    z: axis === 'z' ? dispVal : 0
                 };
             });
         }
