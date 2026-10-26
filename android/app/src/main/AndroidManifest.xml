@@ -24,6 +24,60 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
 
+            <!-- Intent Filter: Open with STEP and 3D files (content and file schemes with extensions) -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <action android:name="android.intent.action.EDIT" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="content" />
+                <data android:scheme="file" />
+                <data android:mimeType="*/*" />
+                <data android:host="*" />
+                <data android:pathPattern=".*\\.step" />
+                <data android:pathPattern=".*\\.stp" />
+                <data android:pathPattern=".*\\.STEP" />
+                <data android:pathPattern=".*\\.STP" />
+                <data android:pathPattern=".*\\.iges" />
+                <data android:pathPattern=".*\\.igs" />
+                <data android:pathPattern=".*\\.IGES" />
+                <data android:pathPattern=".*\\.IGS" />
+                <data android:pathPattern=".*\\.stl" />
+                <data android:pathPattern=".*\\.STL" />
+                <data android:pathPattern=".*\\.obj" />
+                <data android:pathPattern=".*\\.OBJ" />
+                <data android:pathPattern=".*\\.gltf" />
+                <data android:pathPattern=".*\\.glb" />
+                <data android:pathPattern=".*\\.3ds" />
+                <data android:pathPattern=".*\\.ply" />
+            </intent-filter>
+
+            <!-- Intent Filter: Specific MIME types for STEP and 3D CAD files -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <action android:name="android.intent.action.EDIT" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="content" />
+                <data android:scheme="file" />
+                <data android:mimeType="application/step" />
+                <data android:mimeType="application/stp" />
+                <data android:mimeType="application/sla" />
+                <data android:mimeType="application/x-step" />
+                <data android:mimeType="application/x-stp" />
+                <data android:mimeType="application/iges" />
+                <data android:mimeType="application/x-iges" />
+                <data android:mimeType="application/octet-stream" />
+                <data android:mimeType="model/*" />
+            </intent-filter>
+
+            <!-- Intent Filter: Share via GMC 3D Viewer (SEND) -->
+            <intent-filter>
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="*/*" />
+            </intent-filter>
+
         </activity>
 
         <provider
@@ -40,4 +94,5 @@
     <!-- Permissions -->
 
     <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32" />
 </manifest>

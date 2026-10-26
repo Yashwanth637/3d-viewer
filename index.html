@@ -22,6 +22,44 @@
 
     <script type="text/javascript">
         OV.StartWebsite ();
+
+        // Android "Open With" and External File Intent Integration
+        window.handleAndroidOpenFile = function (filePath, fileName) {
+            console.log('[AndroidBridge] Handling file from Android:', fileName, filePath);
+            if (!filePath) return;
+            const fileUrl = 'https://localhost/_capacitor_file_' + filePath;
+            fetch(fileUrl)
+                .then(res => {
+                    if (!res.ok) throw new Error('Failed to fetch local file: ' + res.statusText);
+                    return res.blob();
+                })
+                .then(blob => {
+                    const file = new File([blob], fileName || 'model.step', { type: 'application/octet-stream' });
+                    function loadWhenReady() {
+                        if (window.gmcWebsite && typeof window.gmcWebsite.LoadModelFromFileList === 'function') {
+                            window.gmcWebsite.LoadModelFromFileList([file]);
+                        } else {
+                            setTimeout(loadWhenReady, 150);
+                        }
+                    }
+                    loadWhenReady();
+                })
+                .catch(err => {
+                    console.error('[AndroidBridge] Error loading file:', err);
+                });
+        };
+
+        window.onGmcWebsiteReady = function () {
+            if (window.AndroidFileBridge && typeof window.AndroidFileBridge.notifyWebReady === 'function') {
+                window.AndroidFileBridge.notifyWebReady();
+            }
+        };
+
+        window.addEventListener('DOMContentLoaded', function () {
+            if (window.AndroidFileBridge && typeof window.AndroidFileBridge.notifyWebReady === 'function') {
+                window.AndroidFileBridge.notifyWebReady();
+            }
+        });
     </script>
 </head>
 
@@ -65,7 +103,7 @@
         </symbol>
     </svg>
 
-    <input type="file" id="open_file" style="display:none;" multiple accept="*/*"></input>
+    <input type="file" id="open_file" style="display:none;" multiple accept="*/*,.step,.stp,.STEP,.STP,.iges,.igs,.IGES,.IGS,.stl,.STL,.obj,.OBJ,.gltf,.glb,.3ds,.off,.ply,.dae,.wrl,.fbx"></input>
     <div class="header" id="header">
         <div class="title">
             <div class="title_left">
