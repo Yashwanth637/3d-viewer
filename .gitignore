@@ -3,3 +3,6 @@
 scratch/
 node_modules/
 www/
+*.apk
+.jdk/
+.idea/
