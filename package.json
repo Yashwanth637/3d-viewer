@@ -8,7 +8,8 @@
     "cap:sync": "npx cap sync android",
     "cap:open": "npx cap open android",
     "android:sync": "node build.js && npx cap sync android",
-    "android:open": "node build.js && npx cap sync android && npx cap open android"
+    "android:open": "node build.js && npx cap sync android && npx cap open android",
+    "android:build": "node build.js && npx cap sync android && cd android && ./gradlew assembleDebug && cp app/build/outputs/apk/debug/app-debug.apk ../GMC-3D-Viewer.apk"
   },
   "repository": {
     "type": "git",
