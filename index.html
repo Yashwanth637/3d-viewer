@@ -51,9 +51,10 @@
 
         window.onGmcWebsiteReady = function () {
             if (window.gmcWebsite) {
-                // Ensure Edges are enabled by default
+                // Ensure Edges are enabled by default and threshold is 90
                 if (window.gmcWebsite.settings && window.gmcWebsite.settings.edgeSettings) {
                     window.gmcWebsite.settings.edgeSettings.showEdges = true;
+                    window.gmcWebsite.settings.edgeSettings.edgeThreshold = 90;
                     if (typeof window.gmcWebsite.UpdateEdgeDisplay === 'function') {
                         window.gmcWebsite.UpdateEdgeDisplay();
                     }
