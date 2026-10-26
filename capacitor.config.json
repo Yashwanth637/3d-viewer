@@ -1,0 +1,11 @@
+{
+  "appId": "com.gmc.viewer",
+  "appName": "GMC 3D viewer",
+  "webDir": "www",
+  "server": {
+    "androidScheme": "https"
+  },
+  "android": {
+    "allowMixedContent": true
+  }
+}

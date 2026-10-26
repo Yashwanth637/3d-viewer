@@ -1,0 +1,30 @@
+{
+  "name": "3d-viewer",
+  "version": "1.0.0",
+  "description": "A web-based 3D model viewer running directly in your browser. Replicates the features, design, and capabilities of [3dviewer.net](https://3dviewer.net).",
+  "main": "index.js",
+  "scripts": {
+    "build": "node build.js",
+    "cap:sync": "npx cap sync android",
+    "cap:open": "npx cap open android",
+    "android:sync": "node build.js && npx cap sync android",
+    "android:open": "node build.js && npx cap sync android && npx cap open android"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Yashwanth637/3d-viewer.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/Yashwanth637/3d-viewer/issues"
+  },
+  "homepage": "https://github.com/Yashwanth637/3d-viewer#readme",
+  "dependencies": {
+    "@capacitor/android": "^8.5.3",
+    "@capacitor/cli": "^8.5.3",
+    "@capacitor/core": "^8.5.3"
+  }
+}
