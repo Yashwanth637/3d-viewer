@@ -50,6 +50,20 @@
         };
 
         window.onGmcWebsiteReady = function () {
+            if (window.gmcWebsite) {
+                // Ensure Edges are enabled by default
+                if (window.gmcWebsite.settings && window.gmcWebsite.settings.edgeSettings) {
+                    window.gmcWebsite.settings.edgeSettings.showEdges = true;
+                    if (typeof window.gmcWebsite.UpdateEdgeDisplay === 'function') {
+                        window.gmcWebsite.UpdateEdgeDisplay();
+                    }
+                }
+                // Ensure Free Orbit rotation mode by default (2 = xi.FreeOrbit)
+                if (window.gmcWebsite.cameraSettings && window.gmcWebsite.viewer) {
+                    window.gmcWebsite.cameraSettings.navigationMode = 2;
+                    window.gmcWebsite.viewer.SetNavigationMode(2);
+                }
+            }
             if (window.AndroidFileBridge && typeof window.AndroidFileBridge.notifyWebReady === 'function') {
                 window.AndroidFileBridge.notifyWebReady();
             }
